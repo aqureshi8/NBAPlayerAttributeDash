@@ -1,0 +1,734 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <title>NBA Player Bios Data</title>
+    <script src="https://d3js.org/d3.v4.min.js"></script>
+	<script src="https://raw.github.com/mbostock/d3/v2.4.6/d3.layout.js" type='text/javascript'></script>
+	<script src="http://ajax.googleapis.com/ajax/libs/jquery/2.0.0/jquery.min.js"></script>
+	<style type="text/css">
+	  select {
+        background-color: #FFF8DC;
+        border: solid;
+        color: cornflowerblue;
+        padding: 15px 32px;
+        text-align: center;
+        text-decoration: none;
+        display: inline-block;
+        font-size: 16px;
+        position: absolute;
+      }
+
+      #graphSelect {
+        top: 10px;
+        left: 340px;
+      }
+
+      #xVariable {
+        top: 630px;
+        left: 380px;
+      }
+
+      #yVariable{
+        top: 270px;
+        left: 10px;
+      }
+
+      .brush .selection{
+      	fill: Blue;
+      }
+
+	</style>
+  </head>
+  <body>
+  	<script type="text/javascript">
+  		
+  	  //height and width of svg
+  	  var width = 300;
+  	  var height = 400;
+  	  var xpadding = 50;
+  	  var ypadding = 50;
+
+  	  var dataToPlot = ['Team', 'Age', 'Height', 'Weight','College', 'Country', 'GP', 'PTS', 'REB', 'AST'];
+
+  	  var reverseData = ['AST', 'REB', 'PTS', 'GP', 'Country', 'College', 'Weight', 'Height', 'Age', 'Team'];
+
+  	  var maxCorrData = ['Height', 'Weight', 'PTS', 'REB','AST'];
+
+  	  var parAxesOrder = ['REB', 'PTS', 'AST', 'GP', 'Age', 'Weight', 'Height', 'Country', 'College', 'Team'];
+
+  	  //svg vars to hold all four graphs
+  	  var svg1;
+  	  var svg2;
+  	  var svg3;
+  	  var svg4;
+  	  var brush;
+  	  var brush2;
+  	  var x1;
+  	  var y1;
+  	  var svg4x1;
+  	  var svg4x2;
+  	  var svg4y1;
+  	  var svg4y2;
+  	  var svg4selected;
+  	  var drawornah;
+
+  	  //vars for the scatter plot
+  	  var dots;
+  	  var xScale;
+  	  var yScale;
+  	  var xAxis;
+  	  var yAxis;
+  	  var x;
+  	  var y;
+  	  var circles;
+
+  	  //vars for correlation matrix
+  	  var gradient;
+  	  var corrData;
+  	  var color;
+  	  var text;
+  	  var text1;
+  	  var text2;
+  	  var spots;
+  	  var squares;
+
+  	  //vars for parallel plot
+  	  var myScale;
+  	  var myAxis;
+  	  var my;
+  	  var connect;
+  	  var lines;
+  	  var mplotDatay;
+  	  var mplotDatax;
+  	  var teams;
+
+  	  //vars for pca plot
+  	  var pplotDatax;
+  	  var pplotDatay;
+  	  var pdots;
+  	  var pxScale;
+  	  var pyScale;
+  	  var pxAxis;
+  	  var px;
+  	  var pyAxis;
+  	  var py;
+  	  var pcircles;
+
+	  function clearSVG(svg) {
+		svg.selectAll("*").remove();
+		  try{
+			sPlotxSelect.remove();
+			sPlotySelect.remove();
+		  }
+		  catch(err){}
+	  }
+
+		svg1 = d3.select("body")
+  	  	         .append("svg")
+  	  	         .attr("width", function() {
+  	  	  	   	    return width + xpadding;
+  	  	  		 })
+  	  	  		 .attr("height", function() {
+  	  	  		   	return height + ypadding;
+  	  	  		 });
+
+  	  	svg2 = d3.select("body")
+  	  			 .append("svg")
+  	  			 .attr("width", function() {
+  	  			 	return width + xpadding + 120;
+  	  			 })
+  	  			 .attr("height", function() {
+  	  			 	return height + ypadding;
+  	  			 });
+  	  
+  	  	svg3 = d3.select("body")
+  	  			 .append("svg")
+  	  			 .attr("width", function() {
+  	  			 	return width + xpadding + 230;
+  	  			 })
+  	  			 .attr("height", function() {
+  	  			 	return height + ypadding;
+  	  			 });
+
+  	 	svg4 = d3.select("body")
+  	 			 .append("svg")
+  	 			 .attr("width", function() {
+  	 			 	return width + xpadding + 50;
+  	 			 })
+  	 			 .attr("height", function() {
+  	 			 	return height + ypadding;
+  	 			 });
+
+  	  function setup() {
+  	  	drawornah = new Array(535);
+  	  	for(var x = 0; x < 535; x++) {
+  	  		drawornah[x] = 0;
+  	  	}
+  	  	x1 = 0;
+  	  	y1 = 0;
+  	  	svg4selected = 0;
+  	  }
+
+  	  function plotScatter(xvarat, yvarat) {
+		d3.csv("nbaDataAugmented.csv", function(data) {
+  	  	  
+  	  	  //clear svg holding scatter plot
+  	  	  clearSVG(svg1);
+
+  	   	  //pick the x data to plot
+  	   	  plotDatax = data.map(function(d) {
+  	  	    return parseFloat(d[xvarat]);
+  	  	  });
+
+  	  	  //pick the y data to plot
+  	  	  plotDatay = data.map(function(d) {
+  	  		return parseFloat(d[yvarat]);
+  	  	  });
+
+  	  	  dots = svg1.selectAll("circle")
+  	  	            .data(plotDatax)
+  	  	            .enter()
+  	  	            .append("g");
+
+  	  	  xScale = d3.scaleLinear()
+  	  	  			 .domain([0,d3.max(plotDatax)])
+  	  	  			 .range([0,width]);
+
+  	 	  yScale = d3.scaleLinear()
+  	 	  			 .domain([0,d3.max(plotDatay)])
+  	 	  			 .range([height-100,0]);
+
+  	 	  xAxis = d3.axisBottom().scale(xScale);
+
+  	 	  x = svg1.append("g")
+  	 	  		  .call(xAxis)
+  	 	  		  .attr("transform", "translate(30," + (height - 100 + 20) + ")");
+
+  	 	  yAxis = d3.axisLeft().scale(yScale);
+
+  	 	  y = svg1.append("g")
+  	 	  		  .call(yAxis)
+  	 	  		  .attr("transform", "translate(20,10)");
+
+  	 	  circles = dots.append("circle")
+  	 	  				.attr("cx", function(d, i) {
+  	 	  					return xScale(d) + 30;
+  	 	  				})
+  	 	  				.attr("cy", function(d, i) {
+  	 	  					return yScale(plotDatay[i]) +10;
+  	 	  				})
+  	 	  				.attr("r", 5)
+  	 	  				.attr("fill", function(d,i) {
+  	 	  					if(drawornah[i] ==0) {
+  	 	  						return "Black";
+  	 	  					}
+  	 	  					else {
+  	 	  						return "Blue";
+  	 	  					}
+  	 	  				});
+
+  	 	  svg1.append("text")
+  	 	  	  .text(function() {
+  	 	  	  	return "X: " + xvarat + " Y: " + yvarat;
+  	 	  	  })
+  	 	  	  .attr("x", 125)
+  	 	  	  .attr("y", 375);
+  	    });
+	  }
+
+	  function plotCorr(xvarat, yvarat) {
+	  	d3.csv("correlationMatrix.csv", function(data) {
+
+	  	  //clear svg holding corrmatrix
+	  	  clearSVG(svg2);
+
+	  	  color = d3.scaleLinear()
+						.domain([-1,0,1])
+						.range(["blue","white","red"]);
+
+	  	  corrData = new Array(10);
+
+	  	  gradient = svg2.append("defs")
+	  	  				 .append("linearGradient")
+	  	  				 .attr("id", "gradient")
+	  	  				 .attr("x1", "100%")
+	  	  				 .attr("y1", "100%")
+	  	  				 .attr("x2", "100%")
+	  	  				 .attr("y2", "0%")
+	  	  				 .attr("spreadMethod", "pad");
+	  	  gradient.append("stop")
+	  	  		  .attr("offset", "0%")
+	  	  		  .attr("stop-color", "blue");
+
+	  	  gradient.append("stop")
+	  	  		  .attr("offset", "50%")
+	  	  		  .attr("stop-color", "white");
+
+	  	  gradient.append("stop")
+	  	  		  .attr("offset", "100%")
+	  	  		  .attr("stop-color", "red");
+
+	  	  brush2 = d3.brush()
+	  	  			.extent([[90,0],[width + 100,height-90]])
+	  	  			.on("end", printSelection);
+
+	  	  for(var x = 0; x < 10; x++) {
+	  	  	corrData[x] = data.map(function(d) {
+	  	  		return parseFloat(d[dataToPlot[x]]);
+	  	  	});
+	  	  }
+
+	  	  text = svg2.selectAll("text")
+	  	  			 .data(corrData)
+	  	  			 .enter()
+	  	  			 .append("g")
+
+	  	  text1 = text.append("text")
+	  	  			  .text(function(d,i) {
+	  	  			  	return reverseData[i];
+	  	  			  })
+	  	  			  .attr("x", 0)
+	  	  			  .attr("y", function(d,i) {
+	  	  			  	return i*((width/10) + 1) + 20;
+	  	  			  });
+
+	  	  text2 = text.append("text")
+	  	  			  .text(function(d,i) {
+	  	  			  	return dataToPlot[i];
+	  	  			  })
+	  	  			  .style("text-anchor","end")
+	  	  			  .attr("dx", function(d,i) {
+	  	  			  	return (i * ((width/10) + 1)) + 90;
+	  	  			  })
+	  	  			  .attr("dy", function(d, i) {
+	  	  			  	return height;
+	  	  			  })
+	  	  			  .attr("transform", function(d,i) {
+	  	  			  	return "translate(" + (i*18 - 290) + "," + (i*28 +230) + ")" + "rotate(-65)";
+	  	  			  });
+
+	  	  spots = svg2.selectAll("rect")
+	  	  			  .data(corrData)
+	  	  			  .enter()
+	  	  			  .append("g")
+	  	  			  .attr("transform", function(d,i) {
+	  	  			  	return "translate(90," + (i*((width/10) +1)) + ")";
+	  	  			  });
+
+	  	  squares = spots.selectAll("rect")
+	  	  				 .data(function(d) {
+	  	  				 	return d;
+	  	  				 })
+	  	  				 .enter()
+	  	  				 .append("rect")
+	  	  				 .attr("x", function(d,i) {
+	  	  				 	return i*((width/10)+1);
+	  	  				 })
+	  	  				 .attr("width", function(d) {
+	  	  				 	return width/10;
+	  	  				 })
+	  	  				 .attr("height", function(d) {
+	  	  				 	return (height-100)/10;
+	  	  				 })
+	  	  				 .style("fill", function(d) {
+	  	  				 	return color(d);
+	  	  				 });
+
+	  	  svg2.append("rect")
+	  	  	 .attr("width", "40")
+	  	  	 .attr("height", "80")
+	  	  	 .attr("x", function(d) {
+	  	  	 	return width + 100;
+	  	  	 })
+	  	  	 .attr("y", function(d) {
+	  	  	 	return (height-100)/2 - 35;
+	  	  	 })
+	  	  	 .attr("fill", "url(#gradient)");
+
+	  	  svg2.append("text")
+	  	  	  .text("1")
+	  	  	  .attr("x", width + 145)
+	  	  	  .attr("y", (height-100)/2 - 30);
+
+	  	  svg2.append("text")
+	  	  	  .text("-1")
+	  	  	  .attr("x", width + 142)
+	  	  	  .attr("y", (height-100)/2 + 48);
+
+	  	  svg2.append("g")
+	  	  	  .attr("class","brush2")
+	  	  	  .call(brush2);
+
+	  	  svg2.selectAll(".selection")
+	  	  		.attr("x", "200px")
+	  	  		.attr("y", "200px")
+	  	  		.attr("height", "20px")
+	  	  		.attr("width", "20px");
+	  	});
+	  }
+
+	  function parPlot() {
+	  	d3.csv("nbaDataAugmented.csv", function(data) {
+	  	  //clear the svg holding parplot
+	  	  clearSVG(svg3);
+
+	  	  myScale = new Array(10);
+	  	  myAxis = new Array(10);
+	  	  my = new Array(10);
+	  	  connect = new Array(9);
+	  	  lines = new Array(9);
+	  	  mplotDatay = new Array(10);
+	  	  mplotDatax = new Array(10);
+	  	  teams = data.map(function(d) {
+	  	  	return parseFloat(d["Team"]);
+	  	  })
+
+	  	  for(var x=0; x < 10; x++) {
+
+	  	  	mplotDatax[x] = data.map(function(d) {
+	  	  		return parseFloat(d[parAxesOrder[x]]);
+	  	  	});
+
+	  	  	myScale[x] = d3.scaleLinear()
+	  	  				   .domain([0,d3.max(mplotDatax[x])])
+	  	  				   .range([height,0]);
+
+			myAxis[x] = d3.axisLeft().scale(myScale[x]);
+
+			my[x] = svg3.append("g")
+					   .call(myAxis[x])
+					   .attr("transform", function() {
+					     return "translate(" + (x*60 +20) + ",0)";
+					   });
+	  	  }
+
+	  	  for(var x=0; x<9; x++) {
+
+	  	  	mplotDatay[x] = data.map(function(d) {
+	  	  		return parseFloat(d[parAxesOrder[x+1]]);
+	  	  	});
+
+	  	  	connect[x] = svg3.selectAll("line" + x)
+	  	  					.data(mplotDatax[x])
+	  	  					.enter()
+	  	  					.append("g");
+
+	  	  	svg3.append("text")
+	  	  		.text(parAxesOrder[x])
+	  	  		.attr("x", function(){
+	  	  		  return (x*60);
+	  	  		})
+	  	  		.attr("y", x*32)
+	  	  		.attr("transform", "translate(10," + (x*30 + 450) + ")" +"rotate(-55)");
+
+	  	  	lines[x] = connect[x].append("line")
+	  	  						 .attr("x1", function() {
+	  	  						 	return (x*60+20);
+	  	  						 })
+	  	  						 .attr("y1", function(d) {
+	  	  						 	return myScale[x](d);
+	  	  						 })
+	  	  						 .attr("x2", function() {
+	  	  						 	return ((x+1)*60+20);
+	  	  						 })
+	  	  						 .attr("y2", function(d,i) {
+	  	  						 	return myScale[x+1](mplotDatay[x][i]);
+	  	  						 })
+	  	  						 .attr("stroke-width",function(d,i) {
+	  	  						 	if(svg4selected == 1 && drawornah[i] == 0 ) { return 0;
+	  	  						 	}
+	  	  						 	else {
+	  	  						 		return 1;
+	  	  						 	}
+	  	  						 })
+	  	  						 .attr("stroke",function(d,i) {
+	  	  						 	if(teams[i] == 0) {return "Black";
+	  	  						 	}
+	  	  						 	else if(teams[i]==1) {
+	  	  						 		return "Blue";
+	  	  						 	}
+	  	  						 	else if(teams[i]==2) {
+	  	  						 		return "Red";
+	  	  						 	}
+	  	  						 	else if(teams[i]==3) {
+	  	  						 		return "Orange";
+	  	  						 	}
+	  	  						 	else if(teams[i]==4) {
+	  	  						 		return "Yellow";
+	  	  						 	}
+	  	  						 	else if(teams[i]==5) {
+	  	  						 		return "Green";
+	  	  						 	}
+	  	  						 	else if(teams[i]==6) {
+	  	  						 		return "Purple";
+	  	  						 	}
+	  	  						 	else if(teams[i]==7) {
+	  	  						 		return "Brown";
+	  	  						 	}
+	  	  						 	else if(teams[i]==8) {
+	  	  						 		return "Gray";
+	  	  						 	}
+	  	  						 	else if(teams[i]==9) {
+	  	  						 		return "Beige";
+	  	  						 	}
+	  	  						 	else if(teams[i]==10) {
+	  	  						 		return "DarkCyan";
+	  	  						 	}
+	  	  						 	else if(teams[i]==11) {
+	  	  						 		return "CornflowerBlue";
+	  	  						 	}
+	  	  						 	else if(teams[i]==12) {
+	  	  						 		return "Chocolate";
+	  	  						 	}
+	  	  						 	else if(teams[i]==13) {
+	  	  						 		return "DarkBlue";
+	  	  						 	}
+	  	  						 	else if(teams[i]==14) {
+	  	  						 		return "SpringGreen";
+	  	  						 	}
+	  	  						 	else if(teams[i]==15) {
+	  	  						 		return "YellowGreen";
+	  	  						 	}
+	  	  						 	else if(teams[i]==16) {
+	  	  						 		return "Thistle";
+	  	  						 	}
+	  	  						 	else if(teams[i]==17) {
+	  	  						 		return "Tan";
+	  	  						 	}
+	  	  						 	else if(teams[i]==18) {
+	  	  						 		return "PaleVioletRed";
+	  	  						 	}
+	  	  						 	else if(teams[i]==19) {
+	  	  						 		return "PaleGreen";
+	  	  						 	}
+	  	  						 	else if(teams[i]==20) {
+	  	  						 		return "OliveDrab";
+	  	  						 	}
+	  	  						 	else if(teams[i]==21) {
+	  	  						 		return "MistyRose";
+	  	  						 	}
+	  	  						 	else if(teams[i]==22) {
+	  	  						 		return "LightSalmon";
+	  	  						 	}
+	  	  						 	else if(teams[i]==23) {
+	  	  						 		return "LightGoldenRodYellow";
+	  	  						 	}
+	  	  						 	else if(teams[i]==24) {
+	  	  						 		return "Lavender";
+	  	  						 	}
+	  	  						 	else if(teams[i]==25) {
+	  	  						 		return "Indigo";
+	  	  						 	}
+	  	  						 	else if(teams[i]==26) {
+	  	  						 		return "Aquamarine";
+	  	  						 	}
+	  	  						 	else if(teams[i]==27) {
+	  	  						 		return "Aqua";
+	  	  						 	}
+	  	  						 	else if(teams[i]==28) {
+	  	  						 		return "AntiqueWhite";
+	  	  						 	}
+	  	  						 	else if(teams[i]==29) {
+	  	  						 		return "Plum";
+	  	  						 	}
+	  	  						 	else if(teams[i]==1) {
+	  	  						 		return "RoyalBlue";
+	  	  						 	}
+	  	  						 });
+
+	  	  }
+
+	  	  svg3.append("text")
+	  	  	  .text(parAxesOrder[9])
+	  	  	  .attr("x", function(){
+	  	  		return (9*60);
+	  	  	  })
+	  	  	  .attr("y", 9*30)
+	  	      .attr("transform", "translate(10," + (9*31 + 450) + ")" +"rotate(-55)");
+	  	});
+	  }
+
+	  function plotPCABar() {
+	  	d3.csv("pcaplotmatrix.csv", function(data) {
+
+	  	  clearSVG(svg4);
+
+	  	  pplotDatax = data.map(function(d) {
+	  	    return parseFloat(d["X"]);
+	  	  });
+
+	  	  pplotDatay = data.map(function(d) {
+	  	  	return parseFloat(d["Y"]);
+	  	  });
+
+	  	  pdots = svg4.selectAll("circle")
+	  	   			  .data(pplotDatax)
+	  	   			  .enter()
+	  	   			  .append("g");
+
+	  	  pxScale = d3.scaleLinear()
+	  	   			  .domain([d3.min(pplotDatax),d3.max(pplotDatax)])
+	  	   			  .range([0,width]);
+	  	  pyScale = d3.scaleLinear()
+	  	              .domain([d3.min(pplotDatay),d3.max(pplotDatay)])
+	  	              .range([height,0]);
+
+	  	  brush = d3.brush()
+	  	  			.extent([[70,0],[width + 75,height+10]])
+	  	  			.on("end", redoGraphs);
+
+	  	  pxAxis = d3.axisBottom().scale(pxScale);
+
+	  	  px = svg4.append("g")
+	  	  		   .call(pxAxis)
+	  	  		   .attr("transform", "translate(70," + (height + 10) + ")");
+
+	  	  pyAxis = d3.axisLeft().scale(pyScale);
+
+	  	  py = svg4.append("g")
+	  	  		   .call(pyAxis)
+	  	  		   .attr("transform", "translate(65,0)");
+
+	  	  pcircles = pdots.append("circle")
+	  	  				  .attr("cx",function(d,i) {
+	  	  				  	return pxScale(d) + 70;
+	  	  				  })
+	  	  				  .attr("cy",function(d,i) {
+	  	  				  	return pyScale(pplotDatay[i]);
+	  	  				  })
+	  	  				  .attr("r", 2)
+	  	  				  .attr("fill", function(d,i) {
+	  	  				  	if(svg4selected) {
+	  	  				  	  if((pxScale(d) + 70) > svg4x1 && (pxScale(d) +70) < svg4x2 &&pyScale(pplotDatay[i]) > svg4y1 && pyScale(pplotDatay[i]) < svg4y2) {
+	  	  				  		drawornah[i] = 1
+	  	  				  	  }
+	  	  				  	  if(drawornah[i] ==0) {
+  	 	  						return "Black";
+  	 	  					  }
+  	 	  					  else {
+  	 	  						return "Blue";
+  	 	  					  }
+	  	  				  	}
+	  	  				  });
+
+	  	  svg4.append("text")
+	  	  	  .text("PCA Vector 1")
+	  	  	  .attr("x", function() {
+	  	  	  	return width/2;
+	  	  	  })
+	  	  	  .attr("y", function() {
+	  	  	  	return height + 40;
+	  	  	  });
+
+	  	  svg4.append("text")
+	  	  	  .text("PCA Vector 2")
+	  	  	  .attr("x", function() {
+	  	  	  	return -300;
+	  	  	  })
+	  	  	  .attr("y", function() {
+	  	  	  	return 20;
+	  	  	  })
+	  	  	  .attr("transform", "rotate(-90)")
+
+	  	  svg4.append("g")
+	  	  	  .attr("class","brush")
+	  	  	  .call(brush);
+	  	});
+	  }
+
+	  function redoGraphs() {
+	  	for(var p = 0; p < 535; p++) {
+	  		drawornah[p] = 0;
+	  	}
+	  	svg4x1 = d3.event.selection[0][0];
+	  	svg4y1 = d3.event.selection[0][1];
+	  	svg4x2 = d3.event.selection[1][0];
+	  	svg4y2 = d3.event.selection[1][1];
+	  	svg4selected = 1;
+	  	console.log(svg4x1 + "," + svg4y1);
+	  	console.log(svg4x2 + "," + svg4y2);
+	  	plotPCABar();
+	  	plotScatter(dataToPlot[x1],dataToPlot[y1]);
+	  	parPlot();
+	  }
+
+	  function printSelection() {
+	  	console.log("you stopped brushing");
+	  	console.log(d3.event.selection[0][0]);
+
+	  	if(d3.event.selection[0][0] > 90 && d3.event.selection[0][0] < 121 ) {
+	  		x1 = 0;
+	  	}
+	  	else if(d3.event.selection[0][0] > 121 && d3.event.selection[0][0] < 152 ) {
+	  		x1 = 1;
+	  	}
+	  	else if(d3.event.selection[0][0] > 152 && d3.event.selection[0][0] < 183 ) {
+	  		x1 = 2;
+	  	}
+	  	else if(d3.event.selection[0][0] > 183 && d3.event.selection[0][0] < 214 ) {
+	  		x1 = 3;
+	  	}
+	  	else if(d3.event.selection[0][0] > 214 && d3.event.selection[0][0] < 245 ) {
+	  		x1 = 4;
+	  	}
+	  	else if(d3.event.selection[0][0] > 245 && d3.event.selection[0][0] < 276 ) {
+	  		x1 = 5;
+	  	}
+	  	else if(d3.event.selection[0][0] > 276 && d3.event.selection[0][0] < 307 ) {
+	  		x1 = 6;
+	  	}
+	  	else if(d3.event.selection[0][0] > 307 && d3.event.selection[0][0] < 338 ) {
+	  		x1 = 7;
+	  	}
+	  	else if(d3.event.selection[0][0] > 338 && d3.event.selection[0][0] < 369 ) {
+	  		x1 = 8;
+	  	}
+	  	else if(d3.event.selection[0][0] > 369 && d3.event.selection[0][0] < 400 ) {
+	  		x1 = 9;
+	  	}
+
+	  	if(d3.event.selection[0][1] > 279 && d3.event.selection[0][1] < 310 ) {
+	  		y1 = 0;
+	  	}
+	  	else if(d3.event.selection[0][1] > 248 && d3.event.selection[0][1] < 279 ) {
+	  		y1 = 1;
+	  	}
+	  	else if(d3.event.selection[0][1] > 217 && d3.event.selection[0][1] < 248 ) {
+	  		y1 = 2;
+	  	}
+	  	else if(d3.event.selection[0][1] > 186 && d3.event.selection[0][1] < 217 ) {
+	  		y1 = 3;
+	  	}
+	  	else if(d3.event.selection[0][1] > 155 && d3.event.selection[0][1] < 186 ) {
+	  		y1 = 4;
+	  	}
+	  	else if(d3.event.selection[0][1] > 124 && d3.event.selection[0][1] < 155 ) {
+	  		y1 = 5;
+	  	}
+	  	else if(d3.event.selection[0][1] > 93 && d3.event.selection[0][1] < 124 ) {
+	  		y1 = 6;
+	  	}
+	  	else if(d3.event.selection[0][1] > 62 && d3.event.selection[0][1] < 93 ) {
+	  		y1 = 7;
+	  	}
+	  	else if(d3.event.selection[0][1] > 31 && d3.event.selection[0][1] < 62 ) {
+	  		y1 = 8;
+	  	}
+	  	else if(d3.event.selection[0][1] > 0 && d3.event.selection[0][1] < 31 ) {
+	  		y1 = 9;
+	  	}
+	  	console.log(dataToPlot[x1]);
+	  	console.log(dataToPlot[y1]);
+	  	plotScatter(dataToPlot[x1],dataToPlot[y1]);
+	  }
+
+	  setup();
+	  plotScatter("Team","Team");
+	  plotCorr("Team","Team");
+	  parPlot();
+	  plotPCABar();
+
+  	</script>
+  </body>
+</html>
